@@ -37,13 +37,9 @@ Mini-project in **Python** applying **Object-Oriented Programming (OOP)** and co
 
 ---
 
-## 📌 Example Use Cases
 
-* User borrows a book → added to history (stack).
-* If unavailable → added to reservation queue.
-* Admin can check current books & past transactions.
 
----
+
 
 
 
