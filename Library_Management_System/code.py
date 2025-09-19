@@ -1,20 +1,61 @@
-# Library Management System 
 from collections import deque
 
 # =====================
-# Book Class
+# Parent Class: LibraryItem
 # =====================
-class Book:
+class LibraryItem:
     def __init__(self, isbn, title, author):
-        self.isbn = isbn
-        self.title = title
-        self.author = author
-        self.available = True
-        self.waiting_list = deque()  # Queue of users waiting for this book
+        self.__isbn = isbn             # Private
+        self.__title = title           # Private
+        self.__author = author         # Private
+        self.__available = True        # Private
+        self.__waiting_list = deque()  # Private
 
-    def __str__(self):
-        status = "Available" if self.available else "Not Available"
-        return f"[{self.isbn}] {self.title} by {self.author} ({status})"
+    # ================= Getters =================
+    def get_isbn(self):
+        return self.__isbn
+
+    def get_title(self):
+        return self.__title
+
+    def get_author(self):
+        return self.__author
+
+    def is_available(self):
+        return self.__available
+
+    def waiting_list_length(self):
+        return len(self.__waiting_list)
+
+    # ================= Methods =================
+    def borrow(self, user):
+        if self.__available:
+            self.__available = False
+            return True
+        else:
+            self.__waiting_list.append(user)
+            return False
+
+    def return_item(self):
+        if self.__waiting_list:
+            next_user = self.__waiting_list.popleft()
+            return next_user
+        else:
+            self.__available = True
+            return None
+
+    # Polymorphism: override in subclasses
+    def get_info(self):
+        status = "Available" if self.__available else "Not Available"
+        return f"[{self.__isbn}] {self.__title} by {self.__author} ({status})"
+
+
+# =====================
+# Subclass: Book
+# =====================
+class Book(LibraryItem):
+    def get_info(self):
+        return f"Book -> {super().get_info()}"
 
 
 # =====================
@@ -22,12 +63,30 @@ class Book:
 # =====================
 class User:
     def __init__(self, user_id, name):
-        self.user_id = user_id
-        self.name = name
-        self.borrowed_books = []
+        self.__user_id = user_id          # Private
+        self.__name = name                # Private
+        self.__borrowed_books = []        # Private
 
-    def __str__(self):
-        return f"User {self.user_id}: {self.name}"
+    # Getters
+    def get_id(self):
+        return self.__user_id
+
+    def get_name(self):
+        return self.__name
+
+    def list_borrowed_books(self):
+        return [b.get_title() for b in self.__borrowed_books]
+
+    # Methods
+    def borrow_book(self, book):
+        self.__borrowed_books.append(book)
+
+    def return_book(self, book):
+        if book in self.__borrowed_books:
+            self.__borrowed_books.remove(book)
+
+    def has_book(self, book):
+        return book in self.__borrowed_books
 
 
 # =====================
@@ -35,100 +94,99 @@ class User:
 # =====================
 class Library:
     def __init__(self):
-        self.books = {}  # Dictionary {isbn: Book}
-        self.users = {}  # Dictionary {id: User}
-        self.history = []  # Stack of actions
+        self.__books = {}    # Private: ISBN -> Book
+        self.__users = {}    # Private: user_id -> User
+        self.__history = []  # Private: Stack for history
 
-    # -------- Book Management --------
+    # Add book
     def add_book(self, isbn, title, author):
-        if isbn not in self.books:
-            self.books[isbn] = Book(isbn, title, author)
-            print(f"Book '{title}' added to library.")
+        if isbn not in self.__books:
+            self.__books[isbn] = Book(isbn, title, author)
+            print(f"Book '{title}' added.")
         else:
             print("Book already exists.")
 
+    # Remove book
     def remove_book(self, isbn):
-        if isbn in self.books:
-            del self.books[isbn]
-            print(f"Book with ISBN {isbn} removed.")
+        if isbn in self.__books:
+            del self.__books[isbn]
+            print(f"Book {isbn} removed.")
         else:
             print("Book not found.")
 
+    # Search book
     def search_book(self, keyword):
-        found = [book for book in self.books.values() if keyword.lower() in book.title.lower()]
+        found = [b for b in self.__books.values() if keyword.lower() in b.get_title().lower()]
         if found:
-            for book in found:
-                print(book)
+            for b in found:
+                print(b.get_info())
         else:
             print("No books found.")
 
-    # -------- User Management --------
+    # Register user
     def register_user(self, user_id, name):
-        if user_id not in self.users:
-            self.users[user_id] = User(user_id, name)
-            print(f"User '{name}' registered successfully.")
+        if user_id not in self.__users:
+            self.__users[user_id] = User(user_id, name)
+            print(f"User '{name}' registered.")
         else:
             print("User already exists.")
 
-    # -------- Borrow / Return --------
+    # Borrow book
     def borrow_book(self, user_id, isbn):
-        if user_id not in self.users:
+        if user_id not in self.__users:
             print("User not registered.")
             return
-        if isbn not in self.books:
+        if isbn not in self.__books:
             print("Book not found.")
             return
 
-        book = self.books[isbn]
-        user = self.users[user_id]
+        user = self.__users[user_id]
+        book = self.__books[isbn]
 
-        if book.available:
-            book.available = False
-            user.borrowed_books.append(book)
-            self.history.append(f"{user.name} borrowed '{book.title}'")
-            print(f"{user.name} borrowed '{book.title}'.")
+        if book.borrow(user):
+            user.borrow_book(book)
+            self.__history.append(f"{user.get_name()} borrowed '{book.get_title()}'")
+            print(f"{user.get_name()} borrowed '{book.get_title()}'.")
         else:
-            book.waiting_list.append(user)
-            print(f"'{book.title}' is not available. {user.name} added to waiting list.")
+            print(f"'{book.get_title()}' is not available. Added to waiting list.")
 
+    # Return book
     def return_book(self, user_id, isbn):
-        if user_id not in self.users:
+        if user_id not in self.__users:
             print("User not registered.")
             return
-        if isbn not in self.books:
+        if isbn not in self.__books:
             print("Book not found.")
             return
 
-        book = self.books[isbn]
-        user = self.users[user_id]
+        user = self.__users[user_id]
+        book = self.__books[isbn]
 
-        if book in user.borrowed_books:
-            user.borrowed_books.remove(book)
-            self.history.append(f"{user.name} returned '{book.title}'")
-            print(f"{user.name} returned '{book.title}'.")
+        if user.has_book(book):
+            next_user = book.return_item()
+            user.return_book(book)
+            self.__history.append(f"{user.get_name()} returned '{book.get_title()}'")
+            print(f"{user.get_name()} returned '{book.get_title()}'.")
 
-            if book.waiting_list:
-                next_user = book.waiting_list.popleft()
-                next_user.borrowed_books.append(book)
-                self.history.append(f"{next_user.name} borrowed '{book.title}' from waiting list")
-                print(f"{next_user.name} borrowed '{book.title}' (from waiting list).")
-            else:
-                book.available = True
+            if next_user:
+                next_user.borrow_book(book)
+                self.__history.append(f"{next_user.get_name()} borrowed '{book.get_title()}' from waiting list")
+                print(f"{next_user.get_name()} borrowed '{book.get_title()}' (from waiting list).")
         else:
-            print(f"{user.name} does not have this book.")
+            print(f"{user.get_name()} does not have this book.")
 
-    # -------- History --------
+    # View history
     def view_history(self):
-        if self.history:
+        if self.__history:
             print("\n--- Library History ---")
-            for action in reversed(self.history):  # Stack (LIFO)
+            for action in reversed(self.__history):
                 print(action)
         else:
-            print("No history available.")
+            print("No history.")
 
 
 # =====================
-# Main Program
+# Interactive Menu
 # =====================
 def main():
     library = Library()
@@ -187,4 +245,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
